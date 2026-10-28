@@ -1,0 +1,17 @@
+{
+  "files.associations": {
+    "*.cob": "cobol",
+    "*.cbl": "cobol"
+  },
+  "code-runner.executorMap": {
+    "cobol": "cd $dir && cobc -x -free -o $fileNameWithoutExt.exe $fileName && .\\$fileNameWithoutExt.exe"
+  },
+  "code-runner.executorMapByFileExtension": {
+    ".cob": "cd $dir && cobc -x -free -o $fileNameWithoutExt.exe $fileName && .\\$fileNameWithoutExt.exe",
+    ".cbl": "cd $dir && cobc -x -free -o $fileNameWithoutExt.exe $fileName && .\\$fileNameWithoutExt.exe"
+  },
+  "terminal.integrated.env.windows": {
+    "COB_MAIN_DIR": "C:\\GnuCOBOL",
+    "COB_CONFIG_DIR": "C:\\GnuCOBOL\\config"
+  }
+}

@@ -1,0 +1,118 @@
+IDENTIFICATION DIVISION.
+PROGRAM-ID. CALC-PRET.
+
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION. 
+FILE-CONTROL.
+       SELECT OPTIONAL F-SORTIE-CSV ASSIGN TO WS-NOM-FICHIER
+       ORGANIZATION IS LINE SEQUENTIAL.
+
+DATA DIVISION.
+FILE SECTION.
+       FD F-SORTIE-CSV.
+       01 LINE-CSV               PIC X(150).
+
+WORKING-STORAGE SECTION.
+*> --- VARIABLES D'ENTREE ---
+01 WS-CAPITAL          PIC 9(7)V99.
+01 WS-TAUX-ANNUEL      PIC 9(2)V99.
+01 WS-DUREE-MOIS       PIC 9(3).
+
+01 WS-SAISIE-CAPITAL   PIC X(15).
+
+01 WS-SAISIE-TAUX      PIC X(6).
+
+01 WS-SAISIE-DUREE     PIC X(4).
+
+01 WS-NOM-FICHIER      PIC X(30).
+
+01 WS-REJOUER          PIC X VALUE 'O'.
+
+*> --- VARIABLES DE CALCUL ---
+01  WS-TAUX-MENSUEL     PIC 9V9(6).
+01  WS-PUISSANCE        PIC 9(5)V9(6).
+01  WS-NUMERATEUR       PIC 9(9)V9(6).
+01  WS-DENOMINATEUR     PIC 9(9)V9(6).
+01  WS-MENSUALITE       PIC 9(5)V99.
+01  WS-MOIS-EN-COURS    PIC 9(3).
+01  WS-INTERET-MOIS     PIC 9(5)V99.
+01  WS-AMORT-MOIS       PIC 9(5)V99.
+01  WS-CAPITAL-RESTANT  PIC 9(7)V99.
+
+*>2 --- VARIABLES DE SORTIE (Outputs) ---
+01  WS-LIGNE-FORMATEE.
+       05 WS-OUT-MOIS       PIC ZZZ.
+       05 WS-SEP-1          PIC X VALUE';'.
+       05 WS-OUT-MENSUALITE PIC ZZZZ9.99.
+       05 WS-SEP-2          PIC X VALUE';'.
+       05 WS-OUT-INTERET    PIC ZZZZ9.99.
+       05 WS-SEP-3          PIC X VALUE';'.
+       05 WS-OUT-AMORT      PIC ZZZZ9.99.
+       05 WS-SEP-4          PIC X VALUE';'.
+       05 WS-OUT-RESTANT    PIC ZZZZZZ9.99. 
+
+PROCEDURE DIVISION.
+0000-MAIN-PROCESS.
+       *> Le programme boucle sur le paragrape 1000 tant que l'utilisateur ne tape pas 'N.
+       PERFORM 1000-SIMULATION UNTIL WS-REJOUER = 'N' OR WS-REJOUER = 'n'.
+       STOP RUN.
+
+1000-SIMULATION.
+    DISPLAY " ".
+    DISPLAY "--- NOUVELLE SIMULATION BANCAIRE ---".
+    
+    DISPLAY "Nom du fichier pour cette offre (ex:offre1.csv) : " WITH NO ADVANCING.
+    ACCEPT WS-NOM-FICHIER.
+
+    *> 1. Acquisition dynamique et conversion en nombres stricts.
+    DISPLAY "Entrez le capital (ex: 20000) : " WITH NO ADVANCING.
+    ACCEPT WS-SAISIE-CAPITAL.
+    COMPUTE WS-CAPITAL = FUNCTION NUMVAL(WS-SAISIE-CAPITAL).
+    
+    DISPLAY "Entrez le taux annuel (ex: 3.50) : " WITH NO ADVANCING.
+    ACCEPT WS-SAISIE-TAUX.
+    COMPUTE WS-TAUX-ANNUEL = FUNCTION NUMVAL (WS-SAISIE-TAUX).
+
+    DISPLAY "Entrez la duree en mois (ex: 240) : " WITH NO ADVANCING.
+    ACCEPT WS-SAISIE-DUREE.
+    COMPUTE WS-DUREE-MOIS = FUNCTION NUMVAL(WS-SAISIE-DUREE).
+    
+    *> 3.Intégration des calculs 
+    COMPUTE WS-TAUX-MENSUEL = WS-TAUX-ANNUEL / 1200.
+    COMPUTE WS-PUISSANCE = (1 + WS-TAUX-MENSUEL) ** WS-DUREE-MOIS.
+    COMPUTE WS-NUMERATEUR = WS-CAPITAL * WS-TAUX-MENSUEL * WS-PUISSANCE.
+    COMPUTE WS-DENOMINATEUR = WS-PUISSANCE - 1.
+    COMPUTE WS-MENSUALITE = WS-NUMERATEUR / WS-DENOMINATEUR.
+    
+    *> --- TABLEAU D'AMORTISSEMENT ---
+    *> Initialisation du capital de départ
+    MOVE WS-CAPITAL TO WS-CAPITAL-RESTANT.
+
+    OPEN OUTPUT F-SORTIE-CSV.
+
+    *> Boucle ligne par ligne (de 1 jusqu'au dernier mois)
+       PERFORM VARYING WS-MOIS-EN-COURS FROM 1 BY 1 UNTIL WS-MOIS-EN-COURS > WS-DUREE-MOIS
+           
+           *> 1. Calculs du mois
+           COMPUTE WS-INTERET-MOIS = WS-CAPITAL-RESTANT * WS-TAUX-MENSUEL
+           COMPUTE WS-AMORT-MOIS = WS-MENSUALITE - WS-INTERET-MOIS
+           COMPUTE WS-CAPITAL-RESTANT = WS-CAPITAL-RESTANT - WS-AMORT-MOIS
+
+           *> 2. Formatage pour l'export
+           MOVE WS-MOIS-EN-COURS    TO WS-OUT-MOIS
+           MOVE WS-MENSUALITE       TO WS-OUT-MENSUALITE
+           MOVE WS-INTERET-MOIS     TO WS-OUT-INTERET
+           MOVE WS-AMORT-MOIS       TO WS-OUT-AMORT
+           MOVE WS-CAPITAL-RESTANT  TO WS-OUT-RESTANT
+
+           *> 3. Ecriture de la ligne dans le fichier
+           MOVE WS-LIGNE-FORMATEE TO LINE-CSV
+           WRITE LINE-CSV
+           
+       END-PERFORM.
+
+       CLOSE F-SORTIE-CSV.
+       *> 4. Demande de redémarrage ou d'arrêt
+       DISPLAY " ".
+       DISPLAY "Voulez-vous faire une autre simulation ? (O/N) : " WITH NO ADVANCING.
+       ACCEPT WS-REJOUER.
